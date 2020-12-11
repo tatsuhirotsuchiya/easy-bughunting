@@ -1,0 +1,242 @@
+%% v3.1 [2018/04/18]
+%\documentclass[Proof,technicalreport]{ieicej}
+\documentclass[technicalreport]{ieicej}
+%\usepackage{graphicx}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{textcomp}
+\usepackage{latexsym}
+\usepackage{multirow}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{algorithmic}
+\usepackage{comment}
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e}
+% \usepackage[fleqn]{amsmath}
+%\usepackage{amssymb}
+\usepackage{ulem}
+
+\def\IEICEJcls{\texttt{ieicej.cls}}
+\def\IEICEJver{3.1}
+\newcommand{\AmSLaTeX}{%
+ $\mathcal A$\lower.4ex\hbox{$\!\mathcal M\!$}$\mathcal S$-\LaTeX}
+%\newcommand{\PS}{{\scshape Post\-Script}}
+\def\BibTeX{{\rmfamily B\kern-.05em{\scshape i\kern-.025em b}\kern-.08em
+ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125em X}}
+
+ \theoremstyle{plain}
+ \newtheorem{theorem}{定理}
+ \newtheorem*{theorem*}{定理}
+ \newtheorem{definition}[theorem]{定義}
+ \newtheorem*{definition*}{定義}
+
+\jtitle{逐次プログラムのテストによる分散フォールトトレラントアルゴリズムの検証}
+% \jsubtitle{技術研究報告原稿のための解説とテンプレート}
+% \etitle{How to Use \LaTeXe\ Class File (\IEICEJcls\ version \IEICEJver)
+%         for the Technical Report of the Institute of Electronics, Information
+%         and Communication Engineers}
+% \esubtitle{Guide to the Technical Report and Template}
+\authorlist{%
+% \authorentry[k-kou@ist.osaka-u.ac.jp]{金 浩}{Hao JIN}{OsakaU}%
+% \authorentry[shice060@lixin.edu.cn]{史 冊}{Ce SHI}{LixinU}
+ \authorentry[t-tutiya@ist.osaka-u.ac.jp]{土屋 達弘}{Tatsuhiro TSUCHIYA}{OsakaU}%
+ % \authorentry[jiro@jouhou.co.jp]{通信 次郎}{Ichiro TSHUSIN}{Osaka}%
+}
+% \affiliate[Tokyo]{第一大学工学部\hskip1zw
+%   〒105--0123 東京都港区山田1--2--3}
+%  {Faculty of Engineering,
+%   First University\hskip1em
+%   1--2--3 Yamada, Minato-ku, Tokyo,
+%   105--0123 Japan}
+\affiliate[OsakaU]{大阪大学\hskip1zw
+  〒565--0871 大阪府吹田市山田丘1--5}
+ {Osaka University\hskip1em
+  1--5 Yamadaoka, Suita-shi,
+  565--0871 Japan}
+%\affiliate[LixinU]{上海立信会計金融学院\hskip1zw
+% 〒201209 中国上海市上川路995}
+% {Shanghai Lixin University of Accounting and Finance\hskip1em
+% 995 Shangchuan Road, Shanghai, 201209 China}
+
+%\MailAddress{$\dagger$hanako@denshi.ac.jp,
+% $\dagger\dagger$\{taro,jiro\}@jouhou.co.jp}
+
+\begin{document}
+\begin{jabstract}
+	% 本研究では，組み合わせテストで用いられる2種類の数学的構造である
+	% 制約付きカバリングアレイ（CCA）と制約付きロケーティングアレイ（CLA）
+	% との関係について議論する．
+	% 具体的には，$(t+1)$-way CCAは$(1,t)$-CLAであることを証明し，
+	% この特性を用いて，(1,2)-CLAを効率的に生成する手法を提案する．
+	% 提案する生成手法では，一旦3-way CCAを生成し，そのCCAに対して事後最適化を適用することでCLAを生成する．この方法によって，CLAの生成における制約処理などの時間のかかる計算を，
+	% 研究が進んでいるCCAの生成アルゴリズムによって実質的に行うことができるため，高速なCLAの生成が可能となる．
+
+本研究では，分散フォールトトレラントアルゴリズムの検証を，その動作をシミュレーションする逐次プログラムをテストすることによって行う方法を提案する．
+具体的な分散フォールトトレラントアルゴリズムとして，コンセンサスアルゴリズムを考える．
+コンセンサスアルゴリズムはプロセスの多重化を実現することで分散システムの故障耐性を実現するためのアルゴリズムである．
+提案手法では，まず，通常の逐次プログラムによってコンセンサスアルゴリズムの動作を表現する．
+故障はメッセージの消失によって表現し，乱数を用いてその発生をシミュレーションする．
+次に，逐次プログラムに対する網羅的なテスト手法を用いて，コンセンサスアルゴリズムの性質が違反されないかを調べる．
+本稿では，プログラム作成をC言語を用いて行い，有界モデル検査ツールCBMCを用いてテストを行う．
+\end{jabstract}
+\begin{jkeyword}
+	コンセンサスアルゴリズム，検証，テスト，ブロックチェーン
+\end{jkeyword}
+% \begin{eabstract}
+% IEICE (the Institute of Electronics, Information
+% and Communication Engineers) provides
+% a p\LaTeXe\ class file, named \IEICEJcls\ (ver.\,\IEICEJver),
+% for the Technical Report of IEICE.
+% This document describes how to use the class file,
+% and also makes some remarks about typesetting a document by using p\LaTeXe.
+% The design is based on ASCII Japanese p\LaTeXe.
+% \end{eabstract}
+% \begin{ekeyword}
+% p\LaTeXe\ class file, typesetting
+% \end{ekeyword}
+\maketitle
+
+\section{はじめに}
+
+本研究では，分散フォールトトレラントアルゴリズムの検証を，簡易的かつ有効に行う手法を検討する．
+具体的な，分散フォールトトレラントアルゴリズムとして，コンセンサスアルゴリズムを考える．
+コンセンサスアルゴリズムは分散システムの故障耐性を実現するための本質的な役割を担うアルゴリズムであり，
+長年に渡って多くの研究が行われてきている．
+近年現れたアプリケーションとしては，コンソーシアム型のブロックチェーンを挙げることができる．
+
+しかしながら，逐次アルゴリズムと異なり，分散アルゴリズムではプロセスの実行や
+メッセージの送受信のタイミングなど，非同期的な要素が多量に存在するため，
+アルゴリズムを正しく設計するのは極めて難しい．
+たとえば，コンセンサスアルゴリズムについては，？？や？？で
+誤りが存在し．実際にその実装の運用において顕在化していたことが報告されている．
+
+一方で，アルゴリズムの誤りは，少ないプロセスによる短い実行においても顕在化することが多いことも
+経験的に分かっており，
+上記の二つのアルゴリズムの不具合についてもこのことは当てはまる．
+また，コンセンサスアルゴリズムの検証に関する研究において，一定のプロセス数までで正しさが確認されれば，
+システムがそれ以上のプロセスを有する場合でもアルゴリズムの正しさが成り立つという，プロセス数の上限が
+存在することが示されている．
+これらのことは，少数のプロセスの短い実行を調べることでも，アルゴリズムの不具合を検出は十分に可能なことを
+示唆している．
+言い換えると，小スコープ仮説と呼ばれる，不具合は小さな例でも顕在化するとい仮説が，分散フォールトトレラント
+アルゴリズムの検証にも当てはまるといえる．
+
+そこでアルゴリズムの不具合の有無を調べる場合，数個のプロセスの数ステップの動作を調べることが有効と考えられる．
+しかし，分散アルゴリズムは実装すること自体が難しく，プログラムレベルでテストを行うことは困難である．
+形式検証を目的とした言語（たとえば，SPINモデルチェカー用のPromela言語）を用いる場合，
+検証者がその言語を理解する必要があるだけでなく，簡潔にアルゴリズムや故障を表現できないことも多い．
+
+そこで本研究では，簡易的でありながら効果的にアルゴリズムの不具合を発見可能な方法を提案する．
+本質的な考えは，アルゴリズムの動作をシミュレーションする通常の逐次プログラムを作成し，
+逐次プログラムに対するテスト，検証手法を用いて，アルゴリズム中の不具合を検出することである．
+ここではC言語を用いて逐次プログラムを作成することを考える．
+C言語は極めて広く理解されているとともに，そのテスト，検証手法も十分に確立されている．
+本稿では検証手法として有界モデル検査を用いた結果を報告する．
+
+本論文の構成は以下の通りである．
+節\ref{sec:consensus}では，コンセンサスアルゴリズムと想定する分散システムのモデルについて説明する．
+節\ref{sec:clang}では，C言語の逐次プログラムによって，コンセンサスアルゴリズムの動作を表現する方法を示す．
+節\ref{sec:cmbc}では，得られたC言語のプログラムに対し，有界モデル検査を適用する方法を述べる．
+最後に節\ref{sec:conclusion}でまとめと今後の研究について述べる．
+
+\section{コンセンサスアルゴリズム}\label{sec:consensus}
+
+$n$個のプロセス$p_1, p_2, \ldots, p_n$からなる分散システムを考える．
+各プロセスはラウンドを繰り返し実行する．
+ラウンドの番号は1から始まるものとする．
+プロセスは各ラウンドで，システム中のプロセスにメッセージを送信したのち，
+そのラウンドにおいて自分宛てに送られたメッセージを受信し，
+受信したメッセージに基づいて今の状態を更新する．
+メッセージは喪失や遅延により受信されない可能性がある．
+クラッシュしたプロセスは，送信したメッセージがすべて喪失するプロセスとして表される．
+
+各プロセス$p_i$はアルゴリズムの開始時に提案値$v_i$を有する．
+コンセンサスアルゴリズムの正しさを，以下の性質がすべて成り立つことと定義する．
+
+停止性：プロセスはいずれ決定を行う．
+
+合意：異なるプロセスが決定した値は同一である．
+
+妥当性：決定された値はいずれかの提案値である．
+
+本研究では検証する性質として，合意のみを考える．
+
+単純なアルゴリズムとして，図\ref{fig:onethird}のアルゴリズムを考える．
+このアルゴリズムでは，プロセスの状態は提案値の候補を表している．
+各ラウンドでプロセスは自分の状態をブロードキャストし，3分の2以上のプロセスが
+同じ値を提案値の候補と考えているのであれば，その値で決定を行う．
+そうでない場合は，最も多くのプロセスが候補として考えている値を，
+そのような値が複数ある場合は最小値を新たな候補値として選択する．
+
+\begin{figure}
+	\centering
+	\caption{One-third-ruleアルゴリズム}\label{fig:onethird}
+\end{figure}
+
+
+\section{C言語による表現}\label{sec:clang}
+
+本節では，アルゴリズムの動作をシミュレーションするC言語のプログラムをどう記述するかについて述べる．
+例として，One-third-ruleアルゴリズムの動作を表現したC言語のプログラムを示す．
+
+プログラムでは，ラウンド1から，記号定数NUM\_ROUNDSで表される既定の回数のラウンドの実行をシミュレーションする．
+プロセスの個数は，記号定数NUM\_PROCで指定する．
+ラウンドの実行の前に，提案値をint型の値が各プロセスにランダムに設定する．
+そののちforループによりラウンドの実行を表現する．
+
+メッセージの送信は，chan変数へ送信メッセージを書き込むことで表現している．
+
+メッセージは喪失，遅延により宛先に届かない場合がある．
+これは，chanをランダムに-1に更新することで表現する．
+
+その結果，chan[i][j]が-1であれば，プロセス$p_i$はプロセス$j$からのメッセージを受信しなかったことになる．
+-1でない場合，chan[i][j]はプロセス$p_j$からの送信メッセージの内容を表す．
+プロセス$p_i$はchan[i][j]の内容に基づいて状態を変更し，条件が成り立てば決定を行う．
+
+状態更新の際，最も多く受信した値の中で最小のものを選ぶ必要がある．
+これはC言語のような通常のプログラミング言語であれば，実行して動作を確認しながら容易に表現できる．
+反対に，検証のための専用の言語を用いた場合，このような自然言語で単純に表現できる動作でも，
+簡潔に正しく表現することは簡単ではない．
+
+\section{有界モデル検査の適用}\label{sec:cmbc}
+
+C言語のプログラムを記述した時点で，ランダムシミュレーションが可能になる．
+したがって，プログラムを繰り返し実行することでランダムテストが実行できる．
+一方で，分散アルゴリズムの不具合は，限定されたシナリオでしか顕在化しないことも多い．
+そこで，より網羅的なテスト，検証手法を適用する必要がある．
+
+ここでは，有界モデル検査を用いて検証を行う．
+有界モデル検査は，一定の長さまでの動作を対象に検証を行う手法である．
+検証したい性質と一定長の動作における状態の変化を一つのブール値を持つ式によって記号的に表現する．
+このとき，式が真となることと，不具合が存在することが同値になるように式を構成する．
+入力値等の未定の値は変数として表現することで，任意の値について検証することができる．
+
+本研究では，乱数を用いている提案値が入力値に相当し，これを変数で記号的に扱うことで任意の提案値に対する動作を検証する．
+送信メッセージが受信されるかどうかを決定している乱数についても，記号的に扱い，任意のメッセージの受信パターンを検証で考慮する．
+
+ディレクティブを用いて，有界モデル検査用にプログラムを改変した部分を示す．
+記号定数CBMCが定義されている場合，乱数を用いる代わりに，該当する変数を記号的に扱うことを指示した文が
+preprocessor実行時に選ばれる．
+
+
+\section{不具合検出例}\label{sec:casestudy}
+
+検出した不具合について述べる．
+本手法を適用して検証したアルゴリズムで不具合を発見した．
+このアルゴリズムはFast　Paxosの変種である．
+
+\section{おわりに}\label{sec:conclusion}
+
+本研究では，故障としてクラッシュ故障，オミッション故障を対象とした．
+ブロックチェーン用のコンセンサスアルゴリズムとしては，ビザンチン故障への耐性をもつコンセンサスアルゴリズムの
+利用が望まれる場合も多く，今後は，このクラスのアルゴリズムも検証できるように提案手法を拡張する．
+
+\section*{謝辞}
+本研究はJSPS科研費 18KT0098の助成を受けたものである．
+
+
+
+\bibliographystyle{sieicej}
+% \bibliography{references}
+
+\end{document}
