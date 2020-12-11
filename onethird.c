@@ -1,12 +1,18 @@
 // OneThirdRule
-
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
 
-#define NUM_PROC 4
+// Number of processes
+#if !defined (NUM_PROC) 
+#define NUM_PROC 3
+#endif
+// Number of rounds
+#if !defined (MAX_ROUND)
 #define MAX_ROUND 10
+#endif
+
 #define TWOTHIRD ((int) (2*NUM_PROC/3)) 
 
 int decision[NUM_PROC];
@@ -30,6 +36,7 @@ int main(int argc, char **argv) {
 
     // Iterate rounds MAX_ROUND times
     for (int round = 1; round <= MAX_ROUND; round++) {
+        // channels
         int chnl[NUM_PROC][NUM_PROC]; 
         // send
         for (int proc = 0; proc < NUM_PROC; proc++) {
