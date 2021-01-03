@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 
 // Number of processes
 #if !defined(NUM_PROC)
@@ -16,6 +17,17 @@
 #define HALF ((int)(NUM_PROC / 2))
 #define TWOTHIRD ((int)(2 * NUM_PROC / 3))
 
+int _randint(int first, int last)
+{
+    int tmp;
+#if defined(CBMC)
+    __CPROVER_assume((first <= tmp) && (tmp <= last));
+#else
+    tmp = rand() % (last + 1 - first) + first;
+#endif
+    return tmp;
+}
+
 int decision[NUM_PROC];
 
 int main(int argc, char **argv)
@@ -23,9 +35,12 @@ int main(int argc, char **argv)
     //short state[NUM_PROC];
     int x[NUM_PROC];
     int vote[NUM_PROC];
-    int voteToSend[NUM_PROC];
+    bool voteToSend[NUM_PROC];
     int ts[NUM_PROC];
 
+#if defined(CBMC)
+    // do nothing
+#else
     // Set random seed
     if (argc > 1)
     {
@@ -35,14 +50,15 @@ int main(int argc, char **argv)
     {
         srand((unsigned)time(NULL));
     }
+#endif
 
     // Set proposed values randomly
     // 1, 2, ..., NUM_PROC
     for (int proc = 0; proc < NUM_PROC; proc++)
     {
-        x[proc] = rand() % NUM_PROC + 1;
+        x[proc] = _randint(1, NUM_PROC);
         vote[proc] = -1;
-        voteToSend[proc] = 0;
+        voteToSend[proc] = false;
         ts[proc] = 0;
     }
 
@@ -53,7 +69,7 @@ int main(int argc, char **argv)
         int coord[NUM_PROC];
         for (int proc = 0; proc < NUM_PROC; proc++)
         {
-            coord[proc] = rand() % NUM_PROC;
+            coord[proc] = _randint(0, NUM_PROC -1 );
         }
         // start round % 3 = 1
         {
@@ -87,7 +103,7 @@ int main(int argc, char **argv)
                 struct _chnl *ch = chnl[proc];
                 for (int i = 0; i < NUM_PROC; i++)
                 {
-                    if (rand() % 2 == 0)
+                    if (_randint(0, 1) == 0)
                     {
                         ch[i].x = -1;
                         ch[i].ts = -1;
@@ -129,7 +145,7 @@ int main(int argc, char **argv)
                     }
                     // vote
                     vote[proc] = cand_x;
-                    voteToSend[proc] = 1;
+                    voteToSend[proc] = true;
                 }
             }
             round++;
@@ -148,7 +164,7 @@ int main(int argc, char **argv)
             {
                 for (int peer = 0; peer < NUM_PROC; peer++)
                 {
-                    if ((proc == coord[proc]) && (voteToSend[proc] == 1))
+                    if ((proc == coord[proc]) && (voteToSend[proc] == true))
                     {
                         chnl[peer][proc].vote = vote[proc];
                     }
@@ -164,7 +180,7 @@ int main(int argc, char **argv)
                 struct _chnl *ch = chnl[proc];
                 for (int i = 0; i < NUM_PROC; i++)
                 {
-                    if (rand() % 2 == 0)
+                    if (_randint(0, 1) == 0)
                     {
                         ch[i].vote = -1;
                     }
@@ -221,7 +237,7 @@ int main(int argc, char **argv)
                 struct _chnl *ch = chnl[proc];
                 for (int i = 0; i < NUM_PROC; i++)
                 {
-                    if (rand() % 2 == 0)
+                    if (_randint(0, 1) == 0)
                     {
                         ch[i].ack = -1;
                         ch[i].x = -1;
@@ -268,7 +284,7 @@ int main(int argc, char **argv)
                         break;
                     }
                 }
-                voteToSend[proc] = 0;
+                voteToSend[proc] = false;
             }
             round++;
         } // round end
