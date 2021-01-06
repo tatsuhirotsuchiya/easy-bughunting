@@ -30,6 +30,20 @@ int _randint(int first, int last)
 
 int decision[NUM_PROC];
 
+int firstdecision = 0;
+void decide(int proc, int value) 
+{
+    decision[proc] = value;
+    if (firstdecision == 0)
+    {
+        firstdecision = value;
+    }
+    else
+    {
+        assert(firstdecision == value);
+    }
+}
+
 int main(int argc, char **argv)
 {
     //short state[NUM_PROC];
@@ -279,7 +293,7 @@ int main(int argc, char **argv)
                     }
                     if (count > HALF)
                     {
-                        decision[proc] = val;
+                        decide(proc, val);
                         printf("Pr%d decides %d\n", proc, val);
                         break;
                     }
@@ -288,25 +302,6 @@ int main(int argc, char **argv)
             }
             round++;
         } // round end
-        // safety
-        {
-            int val = 0;
-            for (int i = 0; i < NUM_PROC; i++)
-            {
-                if (decision[i] == 0)
-                {
-                    continue;
-                }
-                else if (val == 0)
-                {
-                    val = decision[i];
-                }
-                else
-                {
-                    assert(val == decision[i]);
-                }
-            }
-        }
     } // phase end
     return 0;
 }
