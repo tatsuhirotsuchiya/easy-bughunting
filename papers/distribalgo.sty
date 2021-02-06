@@ -1,0 +1,102 @@
+% DISTRIBALGO STYLE -- extension of ALGORITHMIC
+%    for LaTeX version 2e
+% E-mail xavier.defago@epfl.ch
+%
+% the algorithmic style was developed by Peter Williams
+%
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{distribalgo}
+\typeout{Document Style `distribalgo' - environment}
+%
+\RequirePackage{algorithmic}
+\newboolean{ALC@highlight}
+\setboolean{ALC@highlight}{false}
+\newcounter{ALC@phase}
+%
+\DeclareOption{noend}{\setboolean{ALC@noend}{true}}
+%
+\ProcessOptions
+%
+% DISTRIBALGO
+\newcommand{\algorithmicphase}{%
+  \addtocounter{ALC@phase}{1}\textbf{Phase~\arabic{ALC@phase}:}}
+\newcommand{\algorithmicinit}{Initialisation:}
+\newcommand{\algorithmicproc}{\textbf{procedure}}
+\newcommand{\algorithmicendproc}{\algorithmicend}
+\newcommand{\algorithmicfunc}{\textbf{function}}
+\newcommand{\algorithmicendfunc}{\algorithmicend}
+\newcommand{\algorithmicwhen}{\textbf{when}}
+\newcommand{\algorithmicendwhen}{\algorithmicend\ \algorithmicwhen}
+\newcommand{\algorithmicupon}{\textbf{upon}}
+\newcommand{\algorithmicendupon}{\algorithmicend\ \algorithmicupon}
+\newcommand{\algorithmicreturn}{\textbf{return}}
+\newcommand{\algorithmicvar}{\textbf{var}}
+\newcommand{\algorithmictask}{\textbf{task}}
+\newcommand{\algorithmicendtask}{\algorithmicend}
+%
+\renewcommand{\algorithmiccomment}[1]{\hfill{\footnotesize \it \{#1\}}\\}
+%
+\newcommand{\starthighlight}{\setboolean{ALC@highlight}{true}}
+\newcommand{\stophighlight}{\setboolean{ALC@highlight}{false}}
+%
+%
+\newenvironment{distribalgo}[1][0]{%
+  \setcounter{ALC@phase}{0}\begin{algorithmic}[#1]
+%
+\renewcommand{\ALC@lno}{%
+\ifthenelse{\equal{\arabic{ALC@rem}}{0}}%
+{\ifthenelse{\boolean{ALC@highlight}}%
+{{\footnotesize \textbf{\arabic{ALC@line}:}}}%
+{{\footnotesize \arabic{ALC@line}:}}}%
+{}}
+    \newenvironment{ALC@indent}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@func}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@proc}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@when}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@init}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@phase}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@var}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@upon}{\begin{ALC@g}}{\end{ALC@g}}
+    \newenvironment{ALC@task}{\begin{ALC@g}}{\end{ALC@g}}
+    \renewcommand{\ALC@it}{%
+      \refstepcounter{ALC@line}
+      \addtocounter{ALC@rem}{1}
+      \ifthenelse{\equal{\arabic{ALC@rem}}{#1}}{%
+        \setcounter{ALC@rem}{0}
+      }{
+      }
+      \item}
+    \renewcommand{\ALC@com}[1]{\ifthenelse{\equal{##1}{default}}%
+      {}{\algorithmiccomment{##1}}}
+    \newcommand{\STCOMMENT}[1]{\ALC@it \{{\footnotesize \it ##1}\}}
+    \newcommand{\PHASE}[1][default]{\ALC@it\algorithmicphase\ \ALC@com{##1}\begin{ALC@phase}}
+    \newcommand{\ENDPHASE}{\end{ALC@phase}}
+    \newcommand{\INIT}{\ALC@it\algorithmicinit\begin{ALC@init}}
+    \newcommand{\ENDINIT}{\end{ALC@init}}
+    \newcommand{\INDENT}[2][default]{\ALC@it{##2}\ \ALC@com{##1}\begin{ALC@indent}}
+    \newcommand{\ENDINDENT}{\end{ALC@indent}}
+    \newcommand{\PROCEDURE}[2][default]{\ALC@it\algorithmicproc\ ##2\ \ALC@com{##1}\begin{ALC@proc}}
+    \newcommand{\FUNCTION}[2][default]{\ALC@it\algorithmicfunc\ ##2\ \ALC@com{##1}\begin{ALC@func}}
+    \newcommand{\TASK}[2][default]{\ALC@it\algorithmictask\ ##2\ \ALC@com{##1}\begin{ALC@task}}
+    \newcommand{\RETURN}[2][default]{\ALC@it\algorithmicreturn\ ##2\ \ALC@com{##1}}
+    \newcommand{\VAR}[1][default]{\ALC@it\algorithmicvar\ \ALC@com{##1}\begin{ALC@var}}
+    \newcommand{\ENDVAR}{\end{ALC@var}}
+    \newcommand{\WHEN}[2][default]{\ALC@it\algorithmicwhen\ ##2\ \ALC@com{##1}\begin{ALC@when}}
+    \newcommand{\UPON}[2][default]{\ALC@it\algorithmicupon\ ##2\ \algorithmicdo\ \ALC@com{##1}\begin{ALC@upon}}
+    \newcommand{\BLANK}{\vspace{\baselineskip}}
+    \ifthenelse{\boolean{ALC@noend}}{
+      \newcommand{\ENDPROC}{\end{ALC@proc}}
+      \newcommand{\ENDFUNC}{\end{ALC@func}}
+      \newcommand{\ENDTASK}{\end{ALC@task}}
+      \newcommand{\ENDWHEN}{\end{ALC@when}}
+      \newcommand{\ENDUPON}{\end{ALC@upon}}
+    }{
+      \newcommand{\ENDPROC}{\end{ALC@proc}\ALC@it\algorithmicendproc}
+      \newcommand{\ENDFUNC}{\end{ALC@func}\ALC@it\algorithmicendfunc}
+      \newcommand{\ENDTASK}{\end{ALC@task}\ALC@it\algorithmicendtask}
+      \newcommand{\ENDWHEN}{\end{ALC@when}\ALC@it\algorithmicendwhen}
+      \newcommand{\ENDUPON}{\end{ALC@upon}\ALC@it\algorithmicendupon}
+    }
+    }{\end{algorithmic}}
+
+

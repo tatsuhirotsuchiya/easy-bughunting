@@ -16,6 +16,16 @@
 %\usepackage{amssymb}
 \usepackage{ulem}
 
+\usepackage{fancyvrb}
+\usepackage{lipsum}
+
+\usepackage{listings}
+
+
+%\usepackage{algorithm}
+\usepackage[noend]{distribalgo}
+
+
 \def\IEICEJcls{\texttt{ieicej.cls}}
 \def\IEICEJver{3.1}
 \newcommand{\AmSLaTeX}{%
@@ -123,7 +133,7 @@
 
 そこでアルゴリズムの不具合の有無を調べる場合，数個のプロセスの数ステップの動作を調べることが有効と考えられる．
 しかし，分散アルゴリズムは実装すること自体が難しく，プログラムレベルでテストを行うことは困難である．
-形式検証を目的とした言語（たとえば，SPINモデルチェカー用のPromela言語）を用いる場合，
+形式検証を目的とした言語（たとえば，SPINモデルチェカー用のPromela言語\cite{spinbook})を用いる場合，
 検証者がその言語を理解する必要があるだけでなく，簡潔にアルゴリズムや故障を表現できないことも多い．
 
 そこで本研究では，簡易的でありながら効果的にアルゴリズムの不具合を発見可能な方法を提案する．
@@ -161,37 +171,159 @@ $n$個のプロセス$p_1, p_2, \ldots, p_n$からなる分散システムを考
 
 本研究では検証する性質として，合意のみを考える．
 
-単純なアルゴリズムとして，図\ref{fig:onethird}のアルゴリズムを考える．
+%単純なアルゴリズムとして，図\ref{fig:onethird}のアルゴリズムを考える．
+
+単純なアルゴリズムとして，One-third ruleアルゴリズム~\cite{HOjournal}を考える(Algorithm~1). 
 このアルゴリズムでは，プロセスの状態は提案値の候補を表している．
 各ラウンドでプロセスは自分の状態をブロードキャストし，3分の2以上のプロセスが
 同じ値を提案値の候補と考えているのであれば，その値で決定を行う．
 そうでない場合は，最も多くのプロセスが候補として考えている値を，
 そのような値が複数ある場合は最小値を新たな候補値として選択する．
+\begin{algorithm}[ht]
+    %\scriptsize{
+    %\footnotesize{
+    % \small{
+    \normalsize{
+        \begin{distribalgo}[1]
+           
+            \INDENT{\textbf{initialization}}
+            \STATE{$x_i :=$ 提案値$v_i$} \\ 
+            % \COMMENT{$r_p$: round number, $est_p$: estimate for decision, $v_p$: proposed value}
+            \ENDINDENT 
+            \BLANK
+            
+            \INDENT{\textbf{Round}~$r$} 
+            \STATE{send $x_i$ to all processes} \\
+            \IF{受信したメッセージ数 $> 2n/3$}
+            \STATE{$x_i :=$ 受信した値の最小値のうち，最も受信数の多いもの} \\
+%%            　　\IF{受信した値で$2n/3$を超える値ものが一致}
+%            　　　　\STATE{この一致する値で決定} \\
+%              \ENDIF
+\IF{受信した値で$2n/3$を超える値ものが一致}
+\STATE{この一致する値で決定}
+\ENDIF
+            \ENDIF
 
-\begin{figure}
-	\centering
-	\caption{One-third-ruleアルゴリズム}\label{fig:onethird}
-\end{figure}
+            \ENDINDENT
+            \caption{One-third-ruleアルゴリズム}
+            \label{algo:bakery}
+        \end{distribalgo}
+    }
+\end{algorithm}
+
+%\begin{figure}
+%	\centering
+%	\caption{One-third-ruleアルゴリズム}\label{fig:onethird}
+%\end{figure}
 
 
 \section{C言語による表現}\label{sec:clang}
 
 本節では，アルゴリズムの動作をシミュレーションするC言語のプログラムをどう記述するかについて述べる．
-例として，One-third-ruleアルゴリズムの動作を表現したC言語のプログラムを示す．
+例として，One-third-ruleアルゴリズムの動作を表現したC言語のプログラムの一部を示す(図\ref{fig:cprogram}))．
 
-プログラムでは，ラウンド1から，記号定数NUM\_ROUNDSで表される既定の回数のラウンドの実行をシミュレーションする．
-プロセスの個数は，記号定数NUM\_PROCで指定する．
+
+\begin{figure*}
+	\centering　{\scriptsize
+\begin{lstlisting}
+    int main(int argc, char **argv)
+    {
+        int state[NUM_PROC];
+                
+        // Set proposed values randomly
+        for (int proc = 0; proc < NUM_PROC; proc++)
+        {
+            state[proc] = _randint(1, NUM_PROC);
+        }
+        
+        // Iterate rounds MAX_ROUND times
+        for (int round = 1; round <= MAX_ROUND; round++)
+        {
+            // channels
+            int chnl[NUM_PROC][NUM_PROC];
+            // send
+            for (int proc = 0; proc < NUM_PROC; proc++)
+            {
+                for (int peer = 0; peer < NUM_PROC; peer++)
+                {
+                    chnl[peer][proc] = state[proc];
+                }
+            }
+            // HO
+            for (int proc = 0; proc < NUM_PROC; proc++)
+            {
+                int *ch = chnl[proc];
+                for (int i = 0; i < NUM_PROC; i++)
+                {
+                    if (_randint(0, 1) == 0)
+                    {
+                        ch[i] = -1;
+                    }
+                }
+            }
+            // receive
+            for (int proc = 0; proc < NUM_PROC; proc++)
+            {
+                int *ch = chnl[proc];
+                // check if more than 2n/3 messages are received
+                int count = 0;
+                for (int i = 0; i < NUM_PROC; i++)
+                {
+                    if (ch[i] >= 0)
+                    {
+                        count++;
+                    }
+                }
+                if (count > TWOTHIRD)
+                {
+                    // select smallest most often occurring value
+                    int max_count = 0, cand_val = 0;
+                    for (int i = 0; i < NUM_PROC; i++)
+                    {
+                        int val = ch[i];
+                        int count = 1;
+                        if (val == -1)
+                        {
+                            continue;
+                        }
+                        for (int j = i + 1; j < NUM_PROC; j++)
+                        {
+                            if (ch[j] == val)
+                            count++;
+                        }
+                        if (max_count < count || (max_count == count && val < cand_val))
+                        {
+                            cand_val = val;
+                            max_count = count;
+                        }
+                    }
+                    printf("proc: %d chooses %d\n.", proc, cand_val);
+                    state[proc] = cand_val;
+                    if (max_count > TWOTHIRD)
+                    {
+                        decide(proc, cand_val);
+                    }
+                }
+            }
+        }
+    }
+\end{lstlisting}}
+\caption{One third ruleに対するCプログラム}\label{fig:cprogram}
+\end{figure*}
+
+プログラムでは，ラウンド1から，記号定数\verb|MAX_ROUND|で表される既定の回数のラウンドの実行をシミュレーションする．
+プロセスの個数は，記号定数\verb|NUM\_PROC|で指定している．
 ラウンドの実行の前に，提案値をint型の値が各プロセスにランダムに設定する．
 そののちforループによりラウンドの実行を表現する．
 
-メッセージの送信は，chan変数へ送信メッセージを書き込むことで表現している．
+メッセージの送信は，変数\verb|chnl|へ送信メッセージを書き込むことで表現している．
 
 メッセージは喪失，遅延により宛先に届かない場合がある．
-これは，chanをランダムに-1に更新することで表現する．
+これは，\verb|chnl|をランダムに-1に更新することで表現する．
 
-その結果，chan[i][j]が-1であれば，プロセス$p_i$はプロセス$j$からのメッセージを受信しなかったことになる．
--1でない場合，chan[i][j]はプロセス$p_j$からの送信メッセージの内容を表す．
-プロセス$p_i$はchan[i][j]の内容に基づいて状態を変更し，条件が成り立てば決定を行う．
+その結果，\verb|chnl[i][j]|が-1であれば，プロセス$p_i$はプロセス$j$からのメッセージを受信しなかったことになる．
+-1でない場合，\verb|chnl[i][j]|はプロセス$p_j$からの送信メッセージの内容を表す．
+プロセス$p_i$は\verb|chnl[i][j]|の内容に基づいて状態を変更し，条件が成り立てば決定を行う．
 
 状態更新の際，最も多く受信した値の中で最小のものを選ぶ必要がある．
 これはC言語のような通常のプログラミング言語であれば，実行して動作を確認しながら容易に表現できる．
@@ -199,7 +331,24 @@ $n$個のプロセス$p_1, p_2, \ldots, p_n$からなる分散システムを考
 簡潔に正しく表現することは簡単ではない．
 
 \section{有界モデル検査の適用}\label{sec:cmbc}
+\begin{figure}[t]
+    \centering　{\scriptsize
+\begin{lstlisting}
+int _randint(int first, int last)
+{
+    int tmp;
+    #if defined(CBMC)
+    __CPROVER_assume((first <= tmp) && (tmp <= last));
+    #else
+    tmp = rand() % (last + 1 - first) + first;
+    #endif
+    return tmp;
+}
+\end{lstlisting}}
 
+        \caption{CBMCの適用}\label{fig:cbmc}
+    \end{figure}          
+   
 C言語のプログラムを記述した時点で，ランダムシミュレーションが可能になる．
 したがって，プログラムを繰り返し実行することでランダムテストが実行できる．
 一方で，分散アルゴリズムの不具合は，限定されたシナリオでしか顕在化しないことも多い．
@@ -211,19 +360,59 @@ C言語のプログラムを記述した時点で，ランダムシミュレー�
 このとき，式が真となることと，不具合が存在することが同値になるように式を構成する．
 入力値等の未定の値は変数として表現することで，任意の値について検証することができる．
 
+C言語のプログラムをこのような式に変換して有界モデル検査を実行するツールとして，CBMCが知られている\cite{ckl2004}．
+本研究でもCBMCを用いる．
+
 本研究では，乱数を用いている提案値が入力値に相当し，これを変数で記号的に扱うことで任意の提案値に対する動作を検証する．
 送信メッセージが受信されるかどうかを決定している乱数についても，記号的に扱い，任意のメッセージの受信パターンを検証で考慮する．
 
-ディレクティブを用いて，有界モデル検査用にプログラムを改変した部分を示す．
+ディレクティブを用いて，有界モデル検査用にプログラムを改変した部分を図\ref{fig:cbmc}に示す．
+この関数では，引数\verb|first|と\verb|last|の間の整数をランダムに選択して変数\verb|tmp|に代入し，戻り値として返す．
 記号定数CBMCが定義されている場合，乱数を用いる代わりに，該当する変数を記号的に扱うことを指示した文が
 preprocessor実行時に選ばれる．
+具体的には，\verb|tmp|は\verb|first <= tmp && tmp <= last|を満たす任意の整数値を
+持つ変数として記号的に扱われる．
+
+\begin{table}
+    \centering
+    \caption{One-third-ruleアルゴリズムに対するCBMC実行時間}\label{tab:onethird}
+    \begin{tabular}{cccc}
+        \hline
+                &  $n=3$ & $n = 4$ & $n = 5$ \\ \hline
+       $r = 3$ &    &    &     \\ 
+       $r = 4$ &    &    &     \\ 
+       $r = 5$ &    &    &     \\ 
+       
+       \hline
+
+    \end{tabular}
+\end{table}
+\begin{table}
+    \centering
+    \caption{LastVotingアルゴリズムに対するCBMC実行時間}\label{tab:lastvoting}
+    \begin{tabular}{cccc}
+        \hline
+        &  $n=3$ & $n = 4$ & $n = 5$ \\ \hline
+        $r = 3$ &    &    &     \\ 
+        $r = 4$ &    &    &     \\ 
+        $r = 5$ &    &    &     \\ 
+        
+        \hline
+        
+    \end{tabular}
+\end{table}
+%\section{不具合検出例}\label{sec:casestudy}
+%
+%検出した不具合について述べる．
+%本手法を適用して検証したアルゴリズムで不具合を発見した．
+%このアルゴリズムはFast　Paxosの変種である．
+
+同様な手法を用いて，別のコンセンサスアルゴリズムであるLastVoting\cite{HOjournal}についても，Cプログラムを作成してCBMCを適用した．
+CBMCの適用した結果，指定したラウンド，プロセス数の範囲ではエラーは検出されなかった．
+
+表\ref{tab:onethird}と表\ref{tab:lastvoting}にCBMCの実行に必要だった時間をアルゴリズム毎にまとめる．
 
 
-\section{不具合検出例}\label{sec:casestudy}
-
-検出した不具合について述べる．
-本手法を適用して検証したアルゴリズムで不具合を発見した．
-このアルゴリズムはFast　Paxosの変種である．
 
 \section{おわりに}\label{sec:conclusion}
 
@@ -237,6 +426,6 @@ preprocessor実行時に選ばれる．
 
 
 \bibliographystyle{sieicej}
-% \bibliography{references}
+\bibliography{references}
 
 \end{document}
