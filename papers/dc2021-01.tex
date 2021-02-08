@@ -146,13 +146,13 @@ C言語は極めて広く普及しているとともに，そのテスト，検�
 \section{コンセンサスアルゴリズム}\label{sec:consensus}
 
 $n$個のプロセス$p_1, p_2, \ldots, p_n$からなる分散システムを考える．
-各プロセスはラウンドを繰り返し実行する．
+各プロセスは非同期ラウンドを繰り返し実行する．
 ラウンドの番号は1から始まるものとする．
 プロセスは各ラウンドで，システム中のプロセスにメッセージを送信したのち，
 そのラウンドにおいて自分宛てに送られたメッセージを受信し，
 受信したメッセージに基づいて今の状態を更新する．
 あるラウンドで送信されたメッセージは，受信されるとすればそのラウンドに限られるものとする．
-(このような性質はcommunication closedと呼ばれる，)
+(このような性質はcommunication closedと呼ばれる\cite{DamianDMW19}．)
 ただし，メッセージは喪失や遅延により受信されない可能性がある．
 クラッシュしたプロセスは，送信したメッセージがすべて喪失するプロセスとして表される．
 
@@ -412,36 +412,7 @@ CBMCを適用する場合，図\ref{fig:cbmc}のようにディレクティブ�
 具体的には，\verb|tmp|は\verb|first <= tmp && tmp <= last|を満たす任意の整数値を
 持つ変数として記号的に扱われる．
 
-\begin{table}[t]
-    \centering
-    \caption{One-third-ruleアルゴリズムに対するCBMC実行時間}\label{tab:onethird}
-    \begin{tabular}{cccc}
-        \hline
-                &  $n=4$ & $n = 5$ & $n = 6$ \\ \hline
-       $r = 1$ &    &    &     \\ 
-       $r = 2$ &    &    &     \\ 
-       $r = 3$ &    &    &     \\ 
-       $r = 4$ &    &    &     \\ 
-       $r = 5$ &    &    &     \\ 
-       
-       \hline
 
-    \end{tabular}
-\end{table}
-\begin{table}[t]
-    \centering
-    \caption{LastVotingアルゴリズムに対するCBMC実行時間}\label{tab:lastvoting}
-    \begin{tabular}{cccc}
-        \hline
-        &  $n=3$ & $n = 4$ & $n = 5$ \\ \hline
-        $r = 4$ &    &    &     \\ 
-        $r = 8$ &    &    &     \\ 
-        $r = 12$ &    &    &     \\ 
-        
-        \hline
-        
-    \end{tabular}
-\end{table}
 %\section{不具合検出例}\label{sec:casestudy}
 %
 %検出した不具合について述べる．
@@ -449,7 +420,7 @@ CBMCを適用する場合，図\ref{fig:cbmc}のようにディレクティブ�
 %このアルゴリズムはFast　Paxosの変種である．
 
 同様な手法を用いて，別のコンセンサスアルゴリズムであるLastVoting\cite{HOjournal}についても，Cプログラムを作成してCBMCを適用した．
-用いた計算機は
+用いた計算機はCPUとしてXeon E3-1245 (3.5GHz), メモリ8GBを有するWindows~10 PCである．
 
 表\ref{tab:onethird}と表\ref{tab:lastvoting}にCBMCの実行に必要だった時間をアルゴリズム毎にまとめる．
 LastVotingは4ラウンドで一つのまとまった処理を行うため，ラウンド数は4の倍数としている．
@@ -459,6 +430,32 @@ LastVotingは4ラウンドで一つのまとまった処理を行うため，ラ
 いずれのアルゴリズムについても，指定したラウンド，プロセス数の範囲では
 アサーションの違反，すなわち，合意性の違反は検出されなかった．
 
+\begin{table}[t]
+    \centering
+    \caption{One-third-ruleアルゴリズムに対するCBMC実行時間 (単位:秒)}\label{tab:onethird}
+    \begin{tabular}{cccc}
+        \hline
+                &  $n=4$ & $n = 5$ & $n = 6$ \\ \hline
+       $r = 1$ &   0.5  &  0.7  &   1.1s   \\ 
+       $r = 2$ &   1.8  &  4.2  &   8.9s   \\ 
+       $r = 3$ &   3.9  &  9.9  &  26.0s   \\ 
+       $r = 4$ &   6.2  & 15.8  &  69.8s   \\       
+       \hline
+
+    \end{tabular}
+\end{table}
+\begin{table}[t]
+    \centering
+    \caption{LastVotingアルゴリズムに対するCBMC実行時間 (単位:秒)}\label{tab:lastvoting}
+    \begin{tabular}{cccc}
+        \hline
+        &  $n=3$ & $n = 4$ & $n = 5$ \\ \hline
+        $r = 4$ &  2.3  &  5.4  &  22.9   \\ 
+        $r = 8$ &  4.7  & 13.9  &  91.0   \\ 
+        $r = 12$ & 9.8  & 42.9  &  TO   \\ 
+        \hline
+    \end{tabular}
+\end{table}
 
 \section{おわりに}\label{sec:conclusion}
 
@@ -468,7 +465,7 @@ LastVotingは4ラウンドで一つのまとまった処理を行うため，ラ
 実際にバグ検出が可能であることを示すことも今後の課題である．
 また，研究ではメッセージ喪失で表現できる故障である，オミッション故障とクラッシュ故障を対象とした．
 しかし，ブロックチェーン用のコンセンサスアルゴリズムとしては，ビザンチン故障への耐性をもつコンセンサスアルゴリズムの
-利用が望まれる場合も多く，今後は，このクラスのアルゴリズムも検証できるように提案手法を拡張する．
+利用が望まれる場合も多く，今後は，このクラスのアルゴリズムもテストできるように提案手法を拡張する．
 
 \section*{謝辞}
 本研究はJSPS科研費 18KT0098の助成を受けたものである．
