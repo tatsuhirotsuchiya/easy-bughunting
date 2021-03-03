@@ -8,3 +8,10 @@ In the approach, the user (the person who debugs an algorithm) writes a sequenti
 - Download CBMC binary from [CBMC homepage](https://www.cprover.org/cbmc/)
 - Use Developer Command Prompt for VS to run the CBMC
  + ``cbmc -DCBMC -DNUM_PROC=5 -DMAX_ROUND=5 filename.c``
+
+
+cl コンパイラ
+
+--trace トーレス
+
+

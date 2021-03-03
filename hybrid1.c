@@ -57,7 +57,7 @@ int main(int argc, char **argv)
     // set parameter R
     int _R;
 #if defined(CBMC)
-     __CPROVER_assume((0 <= _R) && (_R) <= NUM_PROC/4));
+     __CPROVER_assume((0 <= _R) && (_R <= NUM_PROC/4));
 #else
     // Set random seed
     if (argc > 1)
@@ -238,6 +238,10 @@ int main(int argc, char **argv)
                  }
              }
              round++;
+             if (round > MAX_ROUND) 
+             {
+                 break;
+             }
          } // round end
 
          //  round % 3 = 2
@@ -291,6 +295,10 @@ int main(int argc, char **argv)
                  }
              }
              round++;
+             if (round > MAX_ROUND) 
+             {
+                 break;
+             }
          } // end round
 
          // start round % 3 = 0
@@ -374,6 +382,10 @@ int main(int argc, char **argv)
                  voteToSend[proc] = false;
              }
              round++;
+             if (round > MAX_ROUND) 
+             {
+                 break;
+             }
          } // round end
 
      } // phase end
