@@ -1,0 +1,552 @@
+%% v3.1 [2018/04/18]
+%\documentclass[Proof,technicalreport]{ieicej}
+\documentclass[technicalreport]{ieicej}
+%\usepackage{graphicx}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{textcomp}
+\usepackage{latexsym}
+\usepackage{multirow}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{algorithmic}
+\usepackage{comment}
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e}
+% \usepackage[fleqn]{amsmath}
+%\usepackage{amssymb}
+\usepackage{ulem}
+
+\usepackage{fancyvrb}
+\usepackage{lipsum}
+
+\usepackage{listings}
+
+
+%\usepackage{algorithm}
+\usepackage[noend]{distribalgo}
+
+
+\def\IEICEJcls{\texttt{ieicej.cls}}
+\def\IEICEJver{3.1}
+\newcommand{\AmSLaTeX}{%
+ $\mathcal A$\lower.4ex\hbox{$\!\mathcal M\!$}$\mathcal S$-\LaTeX}
+%\newcommand{\PS}{{\scshape Post\-Script}}
+\def\BibTeX{{\rmfamily B\kern-.05em{\scshape i\kern-.025em b}\kern-.08em
+ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125em X}}
+
+ \theoremstyle{plain}
+ \newtheorem{theorem}{定理}
+ \newtheorem*{theorem*}{定理}
+ \newtheorem{definition}[theorem]{定義}
+ \newtheorem*{definition*}{定義}
+
+\jtitle{コンセンサスアルゴリズムに対するラウンドモデルに基づいた簡易的なテスト・検証手法の提案}
+% \jsubtitle{技術研究報告原稿のための解説とテンプレート}
+% \etitle{How to Use \LaTeXe\ Class File (\IEICEJcls\ version \IEICEJver)
+%         for the Technical Report of the Institute of Electronics, Information
+%         and Communication Engineers}
+% \esubtitle{Guide to the Technical Report and Template}
+\authorlist{%
+% \authorentry[k-kou@ist.osaka-u.ac.jp]{金 浩}{Hao JIN}{OsakaU}%
+% \authorentry[shice060@lixin.edu.cn]{史 冊}{Ce SHI}{LixinU}
+ \authorentry[t-tutiya@ist.osaka-u.ac.jp]{土屋 達弘}{Tatsuhiro TSUCHIYA}{OsakaU}%
+ % \authorentry[jiro@jouhou.co.jp]{通信 次郎}{Ichiro TSHUSIN}{Osaka}%
+}
+% \affiliate[Tokyo]{第一大学工学部\hskip1zw
+%   〒105--0123 東京都港区山田1--2--3}
+%  {Faculty of Engineering,
+%   First University\hskip1em
+%   1--2--3 Yamada, Minato-ku, Tokyo,
+%   105--0123 Japan}
+\affiliate[OsakaU]{大阪大学\hskip1zw
+  〒565--0871 大阪府吹田市山田丘1--5}
+ {Osaka University\hskip1em
+  1--5 Yamadaoka, Suita-shi,
+  565--0871 Japan}
+%\affiliate[LixinU]{上海立信会計金融学院\hskip1zw
+% 〒201209 中国上海市上川路995}
+% {Shanghai Lixin University of Accounting and Finance\hskip1em
+% 995 Shangchuan Road, Shanghai, 201209 China}
+
+%\MailAddress{$\dagger$hanako@denshi.ac.jp,
+% $\dagger\dagger$\{taro,jiro\}@jouhou.co.jp}
+
+\begin{document}
+\begin{jabstract}
+    コンセンサスアルゴリズムは，代表的な分散アルゴリズムのクラスであり，分散システム上で信頼性の高いサービスを実現する上で中核となる．
+    このようなサービスには，プロセスレプリケーションやブロックチェーン等が含まれる．
+    本研究では，まず，現在研究を行っているコンセンサスアルゴリズムを簡易的にテスト，検証することで，含まれるバグを効率よく検出する方法を説明する．
+    この方法では，ラウンドモデルというシステムでのイベントの生起する実時間を捨象したモデルを前提に，
+    故障も含めたアルゴリズムの動作を通常の逐次プログラムとして表現する．
+    その結果，プログラムに対する一般のテスト，検証手法を適用して，アルゴリズムのデバッグが可能となる．
+    本稿では更に，既存のアルゴリズムを例に，実際にバグの検出と特定が可能なことを示す．
+\end{jabstract}
+\begin{jkeyword}
+	コンセンサスアルゴリズム，検証，テスト，ブロックチェーン
+\end{jkeyword}
+% \begin{eabstract}
+% IEICE (the Institute of Electronics, Information
+% and Communication Engineers) provides
+% a p\LaTeXe\ class file, named \IEICEJcls\ (ver.\,\IEICEJver),
+% for the Technical Report of IEICE.
+% This document describes how to use the class file,
+% and also makes some remarks about typesetting a document by using p\LaTeXe.
+% The design is based on ASCII Japanese p\LaTeXe.
+% \end{eabstract}
+% \begin{ekeyword}
+% p\LaTeXe\ class file, typesetting
+% \end{ekeyword}
+\maketitle
+
+\section{はじめに}
+
+
+分散システムは，ネットワーク上の複数のプロセスが通信を通じて協調することでサービスを提供するシステムである．
+分散システム上でディペンダブルなサービスを実現するためには，
+サービスに関与するプロセス間で情報を正しく共有し，プロセスの障害や通信の遅延に対しても，
+システムとしてサービスの提供を継続する必要がある．
+コンセンサスアルゴリズムは異なるプロセスが同じ決定を行うことを実現するアルゴリズムであり，
+分散システムにおける情報共有で中心的な役割を果たす．
+
+一方，分散アルゴリズムの設計は逐次アルゴリズムに比べて非常に難しい．
+これは，プロセスや通信が非同期的に実行されることに加え，故障のシナリオも無数にあり，
+これらすべての可能性のある実行に対して，アルゴリズムが正しく動作することが求められるためである．
+コンセンサスアルゴリズム関しては，権威ある国際会議で発表された
+Zyzzyva\cite{KotlaADCW09}やFaB\cite{MartinA05}においても
+誤りが存在し，アルゴリズムを実装して運用した段階で発見されている\cite{Abraham2017}．
+
+そこで本稿では，現在研究を行っているアルゴリズムの誤りを検出するための方法を説明する．
+この方法では，コンセンサスアルゴリズの設計の初期の段階で，簡易的に効率よく誤りを検出することを目的としている．
+本方法では，アルゴリズムの正しさを示すのではなく，
+少ないプロセス数を想定し，かつ，初期状態からの少ない状態遷移のみを考慮して誤り検出を行う．
+この方針は以下の2つの考えに基づく．
+\begin{description}
+\item[\textbf{カットオフバウンド}]
+文献\cite{MaricSB17}では，コンセンサスアルゴリズムの正しさの検証を任意のプロセス数ついてモデル検査という手法で実現している．
+モデル検査は，通常，有限状態機械としてアルゴリズムの動作を表現する必要があるが，この手法では
+個々のコンセンサスアルゴリズムに，ある一定のプロセス数まで正しさを示せば，それ以上のプロセス数についても
+正しさが保証されることを示しており，検証が必要なプロセス数の上限をカットオフバウンドと呼んでいる．
+このような，カットオフバウンドが通常存在することから，アルゴリズムに誤りがある場合，
+少数のプロセス数であっても顕在化することが期待できる．
+
+\item[\textbf{小スコープ仮説}]
+経験的に，アルゴリズムの誤りは短い実行においても顕在化することが多いことが知られている．
+これは，小スコープ仮説と呼ばれ，ZyzzyvaとFaBの誤りについても当てはまる．
+また，分散アルゴリズムに留まらず，一般的なソフトウェアについても小スコープ仮説が当てはまることが多く，
+たとえば，ソフトウェアのモデル化と検証を行うツールであるAlloy Analyzerでは，小スコープ仮説に基づいて，
+仕様に合致する小さい実例を対象として自動検証を実施する方針を採用している．
+\end{description}
+
+更に，手間をかけずにテストを実施するために，本手法では分散アルゴリズムを，一般的な逐次プログラムとして
+表現するアプローチを採用する．
+分散アルゴリズムを実際に分散環境で実行できるようにプログラミングすることは，それ自体非常に負荷の高い
+作業である．
+分散アルゴリズムを表現可能なモデル化言語，例えば，TLA++\cite{}, Promela\cite{spinbook}, Ivy
+を用いて記述する場合でも，記述するためにその言語を理解する必要があるだけでなく，
+アルゴリズムの抽象レベルに合致した表現が得られるとも限らない．
+
+このような問題を避けるため，本手法では，アルゴリズムを，その動作をシミュレーションする
+通常の逐次プログラムとして表現する．そして，そのプログラムに通常のテスト，検証手法を適用することで，
+バグの検出を行う．
+ここで逐次プログラムとして分散アルゴリズムを記述するために，分散アルゴリズムの動作を
+ラウンドモデルによって表現する．
+ラウンドモデルでは，分散システム上で発生する事象，たとえば，メッセージの送受信や故障等について，
+それらが発生した実時間を捨象し，システム全体が非同期的なラウンドを繰り返すものとして，
+アルゴリズムの動作を把握する．これにより，システムの動作をラウンド毎の状態遷移と見なすことが
+可能となり，逐次的に動作を表現することが可能となる．
+
+
+本論文の構成は以下の通りである．
+節\ref{sec:consensus}では，コンセンサスアルゴリズムと想定する分散システムのモデルについて説明する．
+節\ref{sec:clang}では，C言語の逐次プログラムによって，コンセンサスアルゴリズムの動作を表現する方法を示す．
+節\ref{sec:cmbc}では，得られたC言語のプログラムに対し，有界モデル検査を適用する方法を述べる．
+最後に節\ref{sec:conclusion}でまとめと今後の研究について述べる．
+
+\section{システムモデルとコンセンサス}\label{sec:consensus}
+
+\subsection{ラウンドモデル}
+分散システムは，$n$個のプロセス$p_1, p_2, \ldots, p_n$からなるものとする．
+システムの状態は非同期ラウンドを繰り返すことで変化する．
+ラウンドの番号は1から始まるものとする．
+
+各ラウンドにおいて，各プロセスはメッセージの送信，受信，そして状態遷移を，この順序で実行する．
+ラウンドで送信されたメッセージが受信されなかった場合，そのメッセージは喪失する．
+つまり，メッセージの送受信は各ラウンド内で閉じて実行される．
+この性質を，communication closednessと呼ぶ\cite{DamianDMW19}．
+
+システムにおける故障は，メッセージの喪失によってモデル化する．
+本研究では，任意のメッセージが喪失する可能性があるものとする．
+したがって，あるプロセスから送信したメッセージがすべて喪失する可能性もある．
+このようなプロセスはクラッシュしているプロセスを表現している．
+したがって，ここで仮定している故障モデルは，従来の
+オミッション故障モデル（メッセージの送受信の失敗と，プロセスのクラッシュ）に対応する．
+
+\subsection{コンセンサス}
+
+上記のシステムモデルにおけるコンセンサス問題を以下のように定義する．
+初期状態において，各プロセス$p_i$は提案値$v_i$をもつ．
+また，プロセスは値$x$を決定するプリミティブdecide($x$)を実行できる．
+このとき以下の条件を実現する問題をコンセンサス問題とする．
+%初期状態において，各プロセス$p_i$はアルゴリズムの開始時に提案値$v_i$を有する．
+%コンセンサスアルゴリズムの正しさを，以下の性質がすべて成り立つことと定義する．
+
+停止性：プロセスはいずれ決定を行う．
+
+合意性：異なるプロセスが決定した値は同一である．
+
+妥当性：決定された値はいずれかの提案値である．
+
+プロセスやメッセージに同期性をまったく仮定しない場合，
+コンセンサス問題は，故障を1プロセスのクラッシュ故障に限定した場合でも
+決定性のアルゴリズムで解くことが不可能なことが知られている．
+そこで，多くのコンセンサスアルゴリズムは，同期性に関する何らかの仮定を導入した上で，
+完全な非同期性の下では停止性は保証しないが，合意性と妥当性については保証するように
+設計されている．
+また，妥当性に関しては，提案値が書き換えられたり，アルゴリズムの実行の途中で提案値とは異なる値を
+作り出さない限りは，容易に満たすことが可能である．
+本研究では，同期性に関する仮定を置かず，また，ビザンチン故障など提案値を変化させる状況は取り扱わないので，
+合意性に注目し，アルゴリズムの正しさを合意性の観点で判定する．
+
+
+\section{コンセンサスアルゴリズムの例}
+
+本節では本稿で検証を行うコンセンサスアルゴリズムについて説明する．
+ここではChallon-BostとSchiperによるFastPaxosの変種であるアルゴリズムを取り上げる．
+PaxosはLamportによる代表的なコンセンサスアルゴリズムであり，Fast Paxosは最適化されたPaxosの1つである．
+Fast Paxosでは，ほとんどのプロセスが同じ提案値を有する場合，1ラウンド目で決定を行うことができる．
+その条件が成り立たない場合は，通常のPaxosを利用してより遅いラウンドで決定を行う．
+アルゴリズム1は文献のアルゴリズムを表しており，ラウンドモデルを前提にしている．
+
+
+%単純なアルゴリズムとして，図\ref{fig:onethird}のアルゴリズムを考える．
+
+例として，単純なコンセンサスアルゴリズであるOne-third-ruleアルゴリズム~\cite{HOjournal}を取り上げる (Algorithm~1). 
+このアルゴリズムでは，プロセスの状態は決定する値の候補を表している．
+各ラウンドでプロセスは自分の状態をブロードキャストしたのち，
+ブロードキャストされたメッセージを受信した結果，3分の2より多くのプロセスが
+同じ値を提案値の候補と考えているのが分かれば，その値で決定を行う．
+そうでない場合は，最も多くのプロセスが候補として考えている値を，新たな候補値として選択する．
+もし，そのような値が複数ある場合は，それらにおける最小値を選択する．
+\begin{algorithm}[ht]
+    %\scriptsize{
+    %\footnotesize{
+    % \small{
+    \normalsize{
+        \begin{distribalgo}[1]
+           
+            \INDENT{\textbf{initialization}}
+            \STATE{$x_i :=$ 提案値$v_i$} \\ 
+            % \COMMENT{$r_p$: round number, $est_p$: estimate for decision, $v_p$: proposed value}
+            \ENDINDENT 
+            \BLANK
+            
+            \INDENT{\textbf{Round}~$r$} 
+            \STATE{send $x_i$ to all processes} \\
+            \IF{受信したメッセージ数 $> 2n/3$}
+            \STATE{$x_i :=$ 受信した値の最小値のうち，最も受信数の多いもの} \\
+%%            　　\IF{受信した値で$2n/3$を超える値ものが一致}
+%            　　　　\STATE{この一致する値で決定} \\
+%              \ENDIF
+\IF{受信した値で$2n/3$を超える値ものが一致}
+\STATE{この一致する値で決定}
+\ENDIF
+            \ENDIF
+
+            \ENDINDENT
+            \caption{One-third-ruleアルゴリズム}
+            \label{algo:bakery}
+        \end{distribalgo}
+    }
+\end{algorithm}
+
+%\begin{figure}
+%	\centering
+%	\caption{One-third-ruleアルゴリズム}\label{fig:onethird}
+%\end{figure}
+
+
+\begin{comment}
+    
+
+\section{C言語による表現}\label{sec:clang}
+
+本節では，アルゴリズムの動作をシミュレーションするC言語のプログラムをどう記述するかについて述べる．
+例として，One-third-ruleアルゴリズムの動作を表現したC言語のプログラムの一部を示す(図\ref{fig:cprogram})．
+
+
+\begin{figure*}
+	\centering　
+	\begin{minipage}{0.8\textwidth}
+	{\scriptsize
+\begin{lstlisting}[language=c,numbers=left]
+    int main(int argc, char **argv)
+    {
+        int state[NUM_PROC];
+                
+        // Set proposed values randomly
+        for (int proc = 0; proc < NUM_PROC; proc++)
+        {
+            state[proc] = _randint(1, NUM_PROC);
+        }
+        
+        // Iterate rounds MAX_ROUND times
+        for (int round = 1; round <= MAX_ROUND; round++)
+        {
+            // channels
+            int chnl[NUM_PROC][NUM_PROC];
+            // send
+            for (int proc = 0; proc < NUM_PROC; proc++)
+            {
+                for (int peer = 0; peer < NUM_PROC; peer++)
+                {
+                    chnl[peer][proc] = state[proc];
+                }
+            }
+            // message ommission or delay
+            for (int proc = 0; proc < NUM_PROC; proc++)
+            {
+                int *ch = chnl[proc];
+                for (int i = 0; i < NUM_PROC; i++)
+                {
+                    if (_randint(0, 1) == 0)
+                    {
+                        ch[i] = -1;
+                    }
+                }
+            }
+            // receive
+            for (int proc = 0; proc < NUM_PROC; proc++)
+            {
+                int *ch = chnl[proc];
+                // check if more than 2n/3 messages are received
+                int count = 0;
+                for (int i = 0; i < NUM_PROC; i++)
+                {
+                    if (ch[i] >= 0)
+                    {
+                        count++;
+                    }
+                }
+                if (count > TWOTHIRDS)
+                {
+                    // select smallest most often occurring value
+                    int max_count = 0, cand_val = 0;
+                    for (int i = 0; i < NUM_PROC; i++)
+                    {
+                        int val = ch[i];
+                        int count = 1;
+                        if (val == -1)
+                        {
+                            continue;
+                        }
+                        for (int j = i + 1; j < NUM_PROC; j++)
+                        {
+                            if (ch[j] == val)
+                            count++;
+                        }
+                        if (max_count < count || (max_count == count && val < cand_val))
+                        {
+                            cand_val = val;
+                            max_count = count;
+                        }
+                    }
+                    printf("proc: %d chooses %d\n.", proc, cand_val);
+                    state[proc] = cand_val;
+                    if (max_count > TWOTHIRDS)
+                    {
+                        decide(proc, cand_val);
+                    }
+                }
+            }
+        }
+    }
+\end{lstlisting}
+}
+\end{minipage}
+\caption{One third ruleに対するCプログラム}\label{fig:cprogram}
+\end{figure*}
+\end{comment}
+
+プログラムでは，ラウンド1から，記号定数\verb|MAX_ROUND|で表される既定の回数のラウンドの実行をシミュレーションする．
+プロセスの個数は記号定数\verb|NUM_PROC|で指定している．
+ラウンドの実行の前に，提案値を各プロセスにランダムに設定する．
+そののちforループによりラウンドの実行を表現する．
+
+メッセージの送信は，変数\verb|chnl|へ送信メッセージを書き込むことで表現している．
+
+メッセージは喪失，遅延により宛先に届かない場合がある．
+これは，\verb|chnl|をランダムに-1に更新することで表現する．
+
+その結果，\verb|chnl[i][j]|が-1であれば，プロセス$p_i$はプロセス$j$からのメッセージを受信しなかったことになる．
+-1でない場合，\verb|chnl[i][j]|はプロセス$p_j$からの送信メッセージの内容を表す．
+プロセス$p_i$は\verb|chnl[i][j]|の内容に基づいて状態を変更し，条件が成り立てば決定を行う．
+
+状態更新の際，最も多く受信した値の中で最小のものを選ぶ必要がある．
+検証のための専用の言語を用いた場合，このような自然言語で単純に表現できる動作でも，
+簡潔に正しく表現することは簡単ではない．
+一方，C言語のような通常のプログラミング言語であれば，実行して動作を確認しながら容易に表現できる．
+
+合意性が違反されていないことはアサーションによって表現する．
+図\ref{fig:assert}にアサーションを記述した箇所を示す．
+この関数\verb|decide(proc, value)|は，プロセスが決定を行う
+際にそのプロセス番号と決定値を引数として実行される．
+決定値がそれまでに決定された値と同じことをアサーションで
+表しており，もし異なる場合はアサーション違反となる．
+
+\begin{figure}[t]
+\centering　{\scriptsize
+	\begin{lstlisting}[language=c]
+int firstdecision = 0;
+void decide(int proc, int value) 
+{
+	decision[proc] = value;
+	if (firstdecision == 0)
+	{
+		firstdecision = value;
+	}
+	else
+	{
+		assert(firstdecision == value);
+	}
+}
+\end{lstlisting}}
+\caption{合意性のチェック}\label{fig:assert}
+\end{figure}          
+
+
+\section{アルゴリズムの検証}\label{sec:cmbc}
+\begin{figure}[t]
+    \centering　{\scriptsize
+\begin{lstlisting}[language=c]
+int _randint(int first, int last)
+{
+    int tmp;
+    #if defined(CBMC)
+    __CPROVER_assume((first <= tmp) && (tmp <= last));
+    #else
+    tmp = rand() % (last + 1 - first) + first;
+    #endif
+    return tmp;
+}
+\end{lstlisting}}
+
+        \caption{CBMCの適用}\label{fig:cbmc}
+    \end{figure}          
+ 
+
+C言語のプログラムとして表現したアルゴリズムは，
+提案値やメッセージの喪失，遅延を表す変数の値を乱数で設定することで，
+ランダムシミュレーションが可能となる．
+
+ランダムシミュレーションを通して意図した通りアルゴリズムが表現できていると確信できた場合，
+他の体系的なテスト，検証手法を適用してアルゴリズム自体の誤りの検出を行う．
+逐次的なプログラムを網羅的にテスト，検証する手段としては，
+モデル検査や記号実行などが存在する．
+本稿では，これらの手法の中でモデル検査の一種である有界モデル検査を適用する．
+有界モデル検査は，その名が示す通り，初期状態から一定の長さの動作を検証の範囲とし，
+検証の問題を論理式の充足可能性問題へ還元する．
+その結果得られる充足可能性問題はSATやSMTソルバによって解くことが可能となる．
+ここでは有界モデル検査ツールとしてCBMCを用いる\cite{ckl2004}．
+CBMCではLTLで表現できる性質を検証可能であるが，合意性の検証はアサーション違反の検出によって行う．
+また，CBMCでは，変数に対し乱数で値を設定する代わりに記号的に扱うことを指定するディレクティブがあり，
+このような変数が指定された範囲の任意の値を取るもととして検証することができる．
+%入力値等の未定の値は変数として表現することで，任意の値について検証することができる．
+
+%
+%C言語のプログラムを記述した時点で，ランダムシミュレーションが可能になる．
+%したがって，プログラムを繰り返し実行することでランダムテストが実行できる．
+%一方で，分散アルゴリズムの不具合は，限定されたシナリオでしか顕在化しないことも多い．
+%そのようなシナリオを検査するためには，より網羅的なテスト，検証手法を適用する必要がある．
+
+%ここでは，有界モデル検査を用いて検証を行う．
+%有界モデル検査は，一定の長さまでの動作を対象に検証を行う手法である．
+%検証したい性質と一定長の動作における状態の変化を一つのブール値を持つ式によって記号的に表現する．
+%このとき，式が真となることと，不具合が存在することが同値になるように式を構成する．
+%入力値等の未定の値は変数として表現することで，任意の値について検証することができる．
+
+C言語のプログラムをこのような式に変換して有界モデル検査を実行するツールとして，CBMCが知られている\cite{ckl2004}．
+本研究ではこのツールを用いてアサーション違反の可能性を検出する．
+
+%本研究では，乱数を用いている提案値が入力値に相当し，これを変数で記号的に扱うことで任意の提案値に対する動作を検証する．
+%送信メッセージが受信されるかどうかを決定している乱数についても，記号的に扱い，任意のメッセージの受信パターンを検証で考慮する．
+
+コンセンサスでは提案値が入力値に相当し，これを変数で記号的に扱うことで任意の提案値に対する動作を検証する．
+さらに，送信メッセージが受信されるかされないかの選択も記号的に扱い，任意のメッセージの受信パターン，任意の故障パターンを検証で考慮する．
+入力値についてもメッセージ受信の成否も，元のプログラムでは乱数を用いて決定しており，これは関数\verb|_randInt(first, last)|
+によって乱数を得ることで行っている．
+この関数は，引数\verb|first|と\verb|last|の間の整数をランダムに選択して返す．
+
+%ディレクティブを用いた，
+%プログラムにおいて有界モデル検査用に前処理を行う部分を図\ref{fig:cbmc}に示す．
+CBMCを適用する場合，図\ref{fig:cbmc}のようにディレクティブを用いてこの関数を前処理の段階で置換する．
+%この関数では，引数\verb|first|と\verb|last|の間の整数をランダムに選択して変数\verb|tmp|に代入し，戻り値として返す．
+記号定数CBMCが定義されている場合，乱数を用いる代わりに，戻り値を表す変数を記号的に扱うことを指示した文が
+前処理によって選ばれる．
+%preprocessor実行時に選ばれる．
+具体的には，\verb|tmp|は\verb|first <= tmp && tmp <= last|を満たす任意の整数値を
+持つ変数として記号的に扱われる．
+
+
+%\section{不具合検出例}\label{sec:casestudy}
+%
+%検出した不具合について述べる．
+%本手法を適用して検証したアルゴリズムで不具合を発見した．
+%このアルゴリズムはFast　Paxosの変種である．
+
+同様な手法を用いて，別のコンセンサスアルゴリズムであるLastVoting\cite{HOjournal}についても，Cプログラムを作成してCBMCを適用した．
+用いた計算機はCPUとしてXeon E3-1245 (3.5GHz), メモリ8GBを有するWindows~10 PCである．
+
+表\ref{tab:onethird}と表\ref{tab:lastvoting}にCBMCの実行に必要だった時間をアルゴリズム毎にまとめる．
+LastVotingは4ラウンドで一つのまとまった処理を行うため，ラウンド数は4の倍数としている．
+また，1台の故障プロセスに耐えるためにOne-third-ruleアルゴリズムでは最低4個，LastVotingでは最低3個
+プロセスが必要なため，$n$の値はそれぞれ4, 3以上とした．
+タイムアウト時間は5分に設定した．この時間内に検証が終了しなかった場合は，表においてTOと記している．
+いずれのアルゴリズムについても，指定したラウンド，プロセス数の範囲では
+アサーションの違反，すなわち，合意性の違反は検出されなかった．
+
+\begin{table}[t]
+    \centering
+    \caption{One-third-ruleアルゴリズムに対するCBMC実行時間 (単位:秒)}\label{tab:onethird}
+    \begin{tabular}{cccc}
+        \hline
+                &  $n=4$ & $n = 5$ & $n = 6$ \\ \hline
+       $r = 1$ &   0.5  &  0.7  &   1.1s   \\ 
+       $r = 2$ &   1.8  &  4.2  &   8.9s   \\ 
+       $r = 3$ &   3.9  &  9.9  &  26.0s   \\ 
+       $r = 4$ &   6.2  & 15.8  &  69.8s   \\       
+       \hline
+
+    \end{tabular}
+\end{table}
+\begin{table}[t]
+    \centering
+    \caption{LastVotingアルゴリズムに対するCBMC実行時間 (単位:秒)}\label{tab:lastvoting}
+    \begin{tabular}{cccc}
+        \hline
+        &  $n=3$ & $n = 4$ & $n = 5$ \\ \hline
+        $r = 4$ &  2.3  &  5.4  &  22.9   \\ 
+        $r = 8$ &  4.7  & 13.9  &  91.0   \\ 
+        $r = 12$ & 9.8  & 42.9  &  TO   \\ 
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{おわりに}\label{sec:conclusion}
+
+本研究では，分散アルゴリズムをC言語の逐次プログラムで表現し，そのプログラムに対してテストや検証を実行することで，
+アルゴリズム中のバグを検出する手法を提案した．
+現時点ではアルゴリズム中のバグの検証には至っていないため，
+実際にバグ検出が可能であることを示すことも今後の課題である．
+また，研究ではメッセージ喪失で表現できる故障である，オミッション故障とクラッシュ故障を対象とした．
+しかし，ブロックチェーン用のコンセンサスアルゴリズムとしては，ビザンチン故障への耐性をもつコンセンサスアルゴリズムの
+利用が望まれる場合も多く，今後は，このクラスのアルゴリズムもテストできるように提案手法を拡張する．
+
+\section*{謝辞}
+本研究はJSPS科研費 18KT0098の助成を受けたものである．
+
+
+
+\bibliographystyle{sieicej}
+\bibliography{references}
+
+\end{document}

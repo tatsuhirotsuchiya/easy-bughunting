@@ -57,16 +57,18 @@ int main(int argc, char **argv)
     // set parameter R
     int _R;
 #if defined(CBMC)
-     __CPROVER_assume((0 <= _R) && (_R <= NUM_PROC/4));
+//     __CPROVER_assume((0 <= _R) && (_R <= NUM_PROC/4));
+     __CPROVER_assume((0 <= _R) && (_R <= NUM_PROC/4 + 1));
 #else
-    // Set random seed
+    // Set R value
     if (argc > 1)
     {
         _R = atoi(argv[1]);
     }
     else
     {
-        _R = 0; // default
+        // _R = 0; // default
+        _R = NUM_PROC / 4; // default
     }
 #endif
 
@@ -210,6 +212,7 @@ int main(int argc, char **argv)
                          if (count1 >= count - _R)
                          {
                              val = tmpval;
+                             areEqual = true;
                              break;
                          }
                      }
