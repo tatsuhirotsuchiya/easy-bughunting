@@ -10,3 +10,9 @@ In the approach, the user (the person who debugs an algorithm) writes a sequenti
  + ``cbmc -DCBMC -DNUM_PROC=5 -DMAX_ROUND=5 filename.c``
 - CBMC uses Visual Studio's cl.exe as the compiler
 - Use --trace option to show counterexample traces
+
+## Citation
+
+- Tatsuhiro Tsuchiya, "Sequential programming for distributed algorithm verification", 
+in Proceedings of 2024 IEEE 29th Pacific Rim International Symposium on Dependable Computing (PRDC), 
+2024, DOI: 10.1109/PRDC63035.2024.00042.
